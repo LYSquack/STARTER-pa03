@@ -1,6 +1,7 @@
 // includes
 #include "NeuralNetwork.hpp"
 #include "Trace.hpp"
+#include <algorithm>
 #include <unordered_set>
 using namespace std;
 
@@ -183,7 +184,7 @@ double NeuralNetwork::contribute(int nodeId, const double& y, const double& p) {
     }
 
     // Do not update input node biases. Input nodes are not learnable.
-    bool isInput = (std::find(inputNodeIds.begin(), inputNodeIds.end(), nodeId) != inputNodeIds.end());
+    bool isInput = (find(inputNodeIds.begin(), inputNodeIds.end(), nodeId) != inputNodeIds.end());
     if (!isInput) {
         visitContributeNode(nodeId, outgoingContribution);
     }
