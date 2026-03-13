@@ -155,7 +155,7 @@ double NeuralNetwork::contribute(int nodeId, const double& y, const double& p) {
         // Base case: output node (no outgoing connections).
         // Seeds the backward pass with the initial error signal.
         // You do not need to understand this derivation.
-        outgoingContribution = -1 * ((y - p) / (p * (1 - p)));
+        outgoingContribution = p - y;
     } else {
         // Recurse on neighbors
         for (auto& pair : adjacencyList[nodeId]) {
