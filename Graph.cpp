@@ -91,52 +91,44 @@ std::ostream& operator<<(std::ostream& out, const Connection& c) {
 
 // STUDENT TODO: IMPLEMENT
 void Graph::updateNode(int id, NodeInfo n) {
-    if (id < 0 || id >= static_cast<int>(nodes.size())) {
+    if (id < 0 || id >= nodes.size()) {
         cout << "Attempting to update node with id: " << id << " but node does not exist" << endl;
         return;
     }
-
-    // Avoid leaking memory when replacing an existing node.
-    if (nodes.at(id) != nullptr) {
-        delete nodes.at(id);
+    if (nodes[id] != nullptr) {
+        delete nodes[id];
     }
-    nodes.at(id) = new NodeInfo(n);
+    nodes[id] = new NodeInfo(n);
 }
 
 // STUDENT TODO: IMPLEMENT
 NodeInfo* Graph::getNode(int id) const {
-    if (id < 0 || id >= static_cast<int>(nodes.size())) {
-        cerr << "Attempting to access node with id: " << id << " but node does not exist" << endl;
+    if (id < 0 || id >= nodes.size()) {
         return nullptr;
     }
-    return nodes.at(id);
+    return nodes[id];
 }
 
 // STUDENT TODO: IMPLEMENT
 void Graph::updateConnection(int v, int u, double w) {
-    if (v < 0 || v >= static_cast<int>(nodes.size())) {
+    if (v < 0 || v >= nodes.size()) {
         cerr << "Attempting to update connection between " << v << " and " << u << " with weight " << w << " but " << v << " does not exist" << endl;
         exit(1);
     }
-    if (u < 0 || u >= static_cast<int>(nodes.size())) {
+    if (u < 0 || u >= nodes.size()) {
         cerr << "Attempting to update connection between " << v << " and " << u << " with weight " << w << " but " << u << " does not exist" << endl;
         exit(1);
     }
-
-    auto& edges = adjacencyList.at(v);
-    auto it = edges.find(u);
-    if (it != edges.end()) {
-        // Update existing connection weight, keep accumulated delta.
-        it->second.weight = w;
-    } else {
-        edges.emplace(u, Connection(v, u, w));
-    }
+    adjacencyList[v][u] = Connection(v, u, w);
 }
 
 // STUDENT TODO: IMPLEMENT
 void Graph::clear() {
-    for (auto* n : nodes) {
-        delete n;
+    for (auto& node : nodes) {
+        if (node != nullptr) {
+            delete node;
+            node = nullptr;
+        }
     }
     nodes.clear();
     adjacencyList.clear();
