@@ -1,6 +1,7 @@
 // includes
 #include "NeuralNetwork.hpp"
 #include "Trace.hpp"
+#include <algorithm>
 using namespace std;
 
 
