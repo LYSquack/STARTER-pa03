@@ -9,37 +9,37 @@ using namespace std;
 
 // STUDENT TODO: IMPLEMENT
 void NeuralNetwork::eval() {
-    //stub
+    evaluating = true;
 }
 
 // STUDENT TODO: IMPLEMENT
 void NeuralNetwork::train() {
-    //stub
+    evaluating = false;
 }
 
 // STUDENT TODO: IMPLEMENT
 void NeuralNetwork::setLearningRate(double lr) {
-    //stub
+    learningRate = lr;
 }
 
 // STUDENT TODO: IMPLEMENT
 void NeuralNetwork::setInputNodeIds(std::vector<int> inputNodeIds) {
-    //stub
+    this->inputNodeIds = std::move(inputNodeIds);
 }
 
 // STUDENT TODO: IMPLEMENT
 void NeuralNetwork::setOutputNodeIds(std::vector<int> outputNodeIds) {
-    //stub
+    this->outputNodeIds = std::move(outputNodeIds);
 }
 
 // STUDENT TODO: IMPLEMENT
 vector<int> NeuralNetwork::getInputNodeIds() const {
-    return vector<int>(); //stub
+    return inputNodeIds;
 }
 
 // STUDENT TODO: IMPLEMENT
 vector<int> NeuralNetwork::getOutputNodeIds() const {
-    return vector<int>(); //stub
+    return outputNodeIds;
 }
 
 // STUDENT TODO: IMPLEMENT
@@ -55,12 +55,74 @@ vector<double> NeuralNetwork::predict(DataInstance instance) {
         return vector<double>();
     }
 
-    // BFT implementation goes here.
-    // Note: before traversal begins, each input value in `input` must be loaded into
-    // the corresponding input node's postActivationValue. Input nodes are not activated —
-    // their value is passed forward directly.
-    // Use visitPredictNode and visitPredictNeighbor to handle the neural network math
-    // at each step of your traversal.
+    // Reset node activations to prepare for forward pass.
+    for (int i = 0; i < nodes.size(); i++) {
+        nodes.at(i)->preActivationValue = 0;
+        nodes.at(i)->postActivationValue = 0;
+    }
+
+    // Load input values into input nodes (no activation applied).
+    for (int i = 0; i < inputNodeIds.size(); i++) {
+        int nodeId = inputNodeIds.at(i);
+        NodeInfo* n = nodes.at(nodeId);
+        n->preActivationValue = input.at(i);
+        n->postActivationValue = input.at(i);
+    }
+
+    // Prepare for breadth-first traversal using in-degrees.
+    int n = nodes.size();
+    vector<int> inDegree(n, 0);
+    for (int v = 0; v < adjacencyList.size(); v++) {
+        for (auto& kv : adjacencyList.at(v)) {
+            int dest = kv.first;
+            inDegree.at(dest)++;
+        }
+    }
+
+    unordered_set<int> inputSet(inputNodeIds.begin(), inputNodeIds.end());
+    queue<int> q;
+    vector<bool> inQueue(n, false);
+
+    // Enqueue all input nodes to start the traversal.
+    for (int id : inputNodeIds) {
+        if (id >= 0 && id < n && !inQueue.at(id)) {
+            q.push(id);
+            inQueue.at(id) = true;
+        }
+    }
+
+    // In case there are nodes with zero in-degree that aren't in the input set,
+    // enqueue them as well (safe fallback).
+    for (int i = 0; i < n; i++) {
+        if (inDegree.at(i) == 0 && !inQueue.at(i)) {
+            q.push(i);
+            inQueue.at(i) = true;
+        }
+    }
+
+    // Breadth-first traversal to propagate values through the network.
+    while (!q.empty()) {
+        int v = q.front();
+        q.pop();
+
+        // Apply bias + activation for non-input nodes.
+        if (inputSet.find(v) == inputSet.end()) {
+            visitPredictNode(v);
+        }
+
+        // Propagate to neighbors.
+        for (auto& kv : adjacencyList.at(v)) {
+            Connection& c = kv.second;
+            visitPredictNeighbor(c);
+
+            int u = c.dest;
+            inDegree.at(u)--;
+            if (inDegree.at(u) == 0 && !inQueue.at(u)) {
+                q.push(u);
+                inQueue.at(u) = true;
+            }
+        }
+    }
 
     vector<double> output;
     for (int i = 0; i < outputNodeIds.size(); i++) {
@@ -82,58 +144,74 @@ vector<double> NeuralNetwork::predict(DataInstance instance) {
 // STUDENT TODO: IMPLEMENT
 bool NeuralNetwork::contribute(double y, double p) {
 
-    // DFT implementation goes here.
-    // This function initiates the recursion by calling the recursive helper
-    // starting from each input layer node.
-    // Note: input layer nodes do not have a bias to update, so visitContributeNode
-    // should not be called on them.
-    // The contributions map acts as your "visited" set and also stores each node's
-    // computed contribution so it is not recomputed if reached by multiple paths.
+    // Reset the contributions cache for this training example.
+    contributions.clear();
 
-
-    flush();
+    // Run the DFS-based backpropagation starting from each input node.
+    for (int inputId : inputNodeIds) {
+        contribute(inputId, y, p);
+    }
 
     return true;
 }
 // STUDENT TODO: IMPLEMENT
 double NeuralNetwork::contribute(int nodeId, const double& y, const double& p) {
     visitContributeStart(nodeId); // don't remove this line, used for visualization
-    // incomingContribution: the error signal returned by a recursive call on a neighbor.
-    double incomingContribution = 0;
+
+    // If this node is already in the contributions map, return its stored value immediately.
+    if (contributions.find(nodeId) != contributions.end()) {
+        return contributions.at(nodeId);
+    }
+
     // outgoingContribution: built up from this node's neighbors, then scaled by
     // this node's activation derivative before being returned to the previous layer.
     double outgoingContribution = 0;
-    NodeInfo* currNode = nodes.at(nodeId);
 
-    // If this node is already in the contributions map, return its stored value immediately.
-
+    // Base case: output node (no outgoing connections).
     if (adjacencyList.at(nodeId).empty()) {
-        // Base case: output node (no outgoing connections).
         // Seeds the backward pass with the initial error signal.
         // You do not need to understand this derivation.
         outgoingContribution = -1 * ((y - p) / (p * (1 - p)));
+    } else {
+        // Recurse to all outgoing neighbors (next layer) and accumulate their contributions.
+        for (auto& kv : adjacencyList.at(nodeId)) {
+            Connection& c = kv.second;
+            double incomingContribution = contribute(c.dest, y, p);
+            visitContributeNeighbor(c, incomingContribution, outgoingContribution);
+        }
     }
 
-    // Before returning, store outgoingContribution in the contributions map.
+    // Do not update input node biases. Input nodes are not learnable.
+    bool isInput = (std::find(inputNodeIds.begin(), inputNodeIds.end(), nodeId) != inputNodeIds.end());
+    if (!isInput) {
+        visitContributeNode(nodeId, outgoingContribution);
+    }
+
+    // Cache the computed contribution for this node to avoid recomputation.
+    contributions[nodeId] = outgoingContribution;
 
     return outgoingContribution;
 }
 // STUDENT TODO: IMPLEMENT
 bool NeuralNetwork::update() {
     // apply the derivative contributions
+    // Each node has a delta term, each connection has a delta term.
 
-    // traverse the graph in anyway you want. 
-    // Each node has a delta term 
-    // Each connection has a delta term
+    for (int i = 0; i < nodes.size(); i++) {
+        NodeInfo* node = nodes.at(i);
+        node->bias -= learningRate * node->delta;
+        node->delta = 0;
 
-    // use the formulas for each update
-    // bias update: bias = bias - (learningRate * delta)
-    // weight update: weight = weight - (learningRate * delta)
-    // reset the delta term for each node and connection to zero.
-    
+        for (auto& kv : adjacencyList.at(i)) {
+            Connection& c = kv.second;
+            c.weight -= learningRate * c.delta;
+            c.delta = 0;
+        }
+    }
+
+    // Reset for the next round of training.
     flush();
     return true;
-    
 }
 
 
