@@ -159,7 +159,7 @@ double NeuralNetwork::contribute(int nodeId, const double& y, const double& p) {
     } else {
         // Recurse on neighbors
         for (auto& pair : adjacencyList[nodeId]) {
-            Connection c = pair.second;
+            Connection& c = pair.second;
             double incomingContribution = contribute(c.dest, y, p);
             visitContributeNeighbor(c, incomingContribution, outgoingContribution);
         }

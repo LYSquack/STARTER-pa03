@@ -1,5 +1,6 @@
 CXX=g++
-CXX_FLAGS=-std=c++17
+# Ensure headers in the project root are found even when building from a subdirectory.
+CXX_FLAGS=-std=c++17 -I$(dir $(lastword $(MAKEFILE_LIST)))
 
 targets=neuralnet test_neuralnet visualizer
 
