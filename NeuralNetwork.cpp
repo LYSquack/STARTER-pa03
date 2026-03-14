@@ -80,9 +80,9 @@ vector<double> NeuralNetwork::predict(DataInstance instance) {
 
     // Queue for BFT
     queue<int> q;
-    for (int id : inputNodeIds) {
-        if (indegree[id] == 0) {
-            q.push(id);
+    for (size_t i = 0; i < indegree.size(); ++i) {
+        if (indegree[i] == 0) {
+            q.push(i);
         }
     }
 
@@ -123,6 +123,10 @@ vector<double> NeuralNetwork::predict(DataInstance instance) {
     }
     return output;
 }
+
+std::vector<double> NeuralNetwork::predict(std::vector<double> input) {
+    return predict(DataInstance(input, 0));
+}
 // STUDENT TODO: IMPLEMENT
 bool NeuralNetwork::contribute(double y, double p) {
 
@@ -138,7 +142,7 @@ bool NeuralNetwork::contribute(double y, double p) {
         contribute(inputId, y, p);
     }
 
-    flush();
+    contributions.clear();
 
     return true;
 }
@@ -165,8 +169,8 @@ double NeuralNetwork::contribute(int nodeId, const double& y, const double& p) {
         }
     }
 
-    // Don't call visitContributeNode for input nodes
-    if (find(inputNodeIds.begin(), inputNodeIds.end(), nodeId) == inputNodeIds.end()) {
+    // Don't call visitContributeNode for input nodes or output nodes
+    if (find(inputNodeIds.begin(), inputNodeIds.end(), nodeId) == inputNodeIds.end() && !adjacencyList.at(nodeId).empty()) {
         visitContributeNode(nodeId, outgoingContribution);
     }
 
